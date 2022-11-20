@@ -6,12 +6,12 @@ vars <- training_set |>
   set_names()
 
 #Use map function to create a sequence of plots
-plots <-  map(vars, ~ggplot(data = training_set) +
+scatter_plots <-  map(vars, ~ggplot(data = training_set) +
               geom_point(aes(x = target_wins, y = .data[[.x]]) ) +
               theme_minimal() +
               labs(y = .x)
 )
-plots
+
 
 
 #Correlation matrix
