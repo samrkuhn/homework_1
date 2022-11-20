@@ -12,6 +12,12 @@ scatter_plots <-  map(vars, ~ggplot(data = training_set) +
               labs(y = .x)
 )
 
+hist_plots <- map(vars, ~ggplot(data = training_set) +
+                    geom_histogram(aes(x = .data[[.x]]) ) +
+                    theme_minimal() +
+                    labs(y = .x)
+)
+hist_plots$target_wins
 
 
 #Correlation matrix

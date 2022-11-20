@@ -41,3 +41,12 @@ training_set |>
   summarise(across(everything(), ~ sd(.))) |> 
   glimpse()
 
+# Log transformation
+training_set |> 
+  mutate(across(
+    .cols = c("team_batting_h", "team_batting_3b", "team_pitching_bb", 
+              "team_batting_so", "team_baserun_sb", "team_baserun_cs",
+              "team_batting_hbp", "team_batting_so", "team_fielding_e"),
+    .fns = log
+  ))
+

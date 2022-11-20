@@ -122,8 +122,6 @@ Now that we do not have any missing values, we can perform some summary statisti
 
 : Summary Statistics
 
-{{< pagebreak >}}
-
 ### Summary plots
 
 Let's look at some plots to visually inspect the data:
@@ -240,6 +238,47 @@ hist_plots$team_fielding_e
 
 ## Build Models
 
+### Model 1
+
+For our first model, let's use all the variables that have a positive correlation with `target_wins`. Our first model specification will be as follows:
+
+$wins = \beta_0 + \beta_1BaseHits + \beta_2Doubles + \beta_3Walks + \beta_4Homeruns + \beta_5Triples + \beta_6WalksAllowed + \beta_7StolenBases + \beta_8PitchesHit + \beta_9CaughtStealing + \epsilon$
+
+```{r}
+#| warning: false
+#| echo: false
+##First model: Only use variables with positive correlation coefficient
+lm_fit_1 <- lm(target_wins ~ team_batting_h + 
+                 team_batting_2b + 
+                 team_batting_bb +
+                 team_pitching_hr + 
+                 team_batting_3b +
+                 team_pitching_bb + 
+                 team_baserun_sb + 
+                 team_batting_hbp + 
+                 team_baserun_cs, data = training_set)
+tidy(lm_fit_1)
+```
+
+Let's check the residuals vs. fitted plot. 
+
+```{r}
+#| echo: false
+##Diagnostics
+#check for spefication bias
+lm_df <- broom::augment(lm_fit_1)
+lm_df |> 
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_point() +
+  geom_smooth(method = "loess", se = FALSE, linetype = "dashed", color = "red") +
+  labs(
+    title = "Fitted vs. residual values"
+  ) +
+  xlab("Fitted Value") +
+  ylab("Residuals") +
+  theme_minimal()
+```
+
 ## Select Models
 
 
@@ -320,5 +359,33 @@ training_set |>
               "team_batting_hbp", "team_batting_so", "team_fielding_e"),
     .fns = log
   ))
+```
+
+### Models
+
+```{r}
+##First model: Only use variables with positive correlation coefficient
+lm_fit_1 <- lm(target_wins ~ team_batting_h + team_batting_2b + team_batting_bb + team_pitching_hr + team_batting_3b +
+                 team_pitching_bb + team_baserun_sb + team_batting_hbp + team_baserun_cs, data = training_set)
+tidy(lm_fit_1)
+```
+
+Let's check the residuals vs. fitted plot. 
+
+```{r}
+#| echo: false
+##Diagnostics
+#check for spefication bias
+lm_df <- broom::augment(lm_fit_1)
+lm_df |> 
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_point() +
+  geom_smooth(method = "loess", se = FALSE, linetype = "dashed", color = "red") +
+  labs(
+    title = "Fitted vs. residual values"
+  ) +
+  xlab("Fitted Value") +
+  ylab("Residuals") +
+  theme_minimal()
 ```
 
