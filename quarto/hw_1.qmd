@@ -257,6 +257,8 @@ lm_fit_1 <- lm(target_wins ~ team_batting_h +
                  team_batting_hbp + 
                  team_baserun_cs, data = training_set)
 summary(lm_fit_1)
+
+print(paste0("The mean squared error is: ", mean(lm_fit_1$residuals^2)))
 ```
 
 Let's check the residuals vs. fitted plot. 
@@ -292,6 +294,7 @@ The first results is the full model (using all predictors).
 #| warning: false
 lm_fit_2 <- lm(target_wins ~ ., data = training_set)
 summary(lm_fit_2)
+print(paste0("The mean squared error is: ", mean(lm_fit_2$residuals^2)))
 ```
 
 The second result is the model chose by `stepAIC` function from the `MASS` package. From the results below, the following predictors were excluded: `team_baserun_cs`, `team_batting_hbp`, `team_pitching_bb`, and `team_pitching_hr`. Analyzing the coefficients in the table below, `team_batting_2b` again has a negative coefficient, as well as: `team_fielding_dp`. 
@@ -305,6 +308,7 @@ In the stepwise-AIC model, we observe the same pattern, where `team_batting_2b` 
 #| warning: false
 lm_fit_2_stepwise <- MASS::stepAIC(lm_fit_2, direction = "both", trace = FALSE)
 summary(lm_fit_2_stepwise)
+print(paste0("The mean squared error is: ", mean(lm_fit_2_stepwise$residuals^2)))
 lm_df_2 <- broom::augment(lm_fit_2_stepwise)
 lm_df_2 |> 
   ggplot(aes(x = .fitted, y = .resid)) +
@@ -344,6 +348,7 @@ lm_fit_3 <- lm(target_wins ~ team_batting_h +
                  team_baserun_cs, 
                data = training_set)
 summary(lm_fit_3)
+print(paste0("The mean squared error is: ", mean(lm_fit_3$residuals^2)))
 ```
 
 Let's check the residuals vs. fitted plot:
@@ -366,6 +371,41 @@ lm_df_3 |>
 {{< pagebreak >}}
 
 ## Select Models
+
+From the models in the `Build Models` section, to choose the final model we need to think about multicollinearity issues & normality of the residuals. Each section below will have a short-discussion about the performance and inference issues of the three models. The four diagnostics plots can be found in the relevant appendix section. 
+
+### Model 1 Diagnostics:
+
+Model 1's biggest problem is the strong positive correlation the predictors share. We would expect that as the number of base hits by batters increases, so would doubles, triples and home-runs. The adjusted $R^2$ for this model is .2433. The residuals vs. fitted chart is showing a slight pattern towards the low end of target wins. Model 1 had the highest mean squared error at 186.9294.
+
+### Model 2 Diagnostics:
+
+Model 2's performance looks the most promising based on the adjusted $R^2$ of .3111 and the diagnostic plots. The residual vs. fitted chart does show a slight pattern towards the high end of target wins, however it is not nearly as pronounced as model 1. The normal QQ plot has a more linear relationship than 1 as well. Model 2 had the lowest mean squared error at 169.8769.
+
+### Model 3 Diagnostics:
+
+I would rank model 3's performance as better than model 1, however slightly worse than model 2. The fitted vs. residual plot shows a stronger downward trend on the higher end of target wins compared to 2, and a lower adjusted $R^2$ at .2833. The normal QQ plot is also slightly less linear than compared to model 2. Model 3's mean squared error was in the middle, at 176.8181. 
+
+{{< pagebreak >}}
+
+### Evaluation
+
+Based on the following metrics: Adjusted $R^2$, mean squared error and the diagnostic plots, model 2 is the clear favorite. Now we will evaluate its performance against the evaluation data set. We will peform the same data imputation method as the training data-set for accuracy. 
+
+```{r}
+eval_set <- readr::read_csv(here::here("data", "moneyball-evaluation-data (1).csv")) |> 
+  janitor::clean_names() |> 
+  glimpse()
+
+eval_set <- eval_set |> 
+  mutate(across(everything(), ~tidyr::replace_na(., median(., na.rm = TRUE)))) |> 
+  glimpse()
+```
+
+```{r}
+pred <- predict(lm_fit_2_stepwise, eval_set)
+summary(pred)
+```
 
 
 {{< pagebreak >}}
@@ -491,6 +531,11 @@ lm_df |>
   theme_minimal()
 ```
 
+```{r}
+plot(lm_fit_1)
+```
+
+
 #### Model 2
 
 ```{r}
@@ -513,6 +558,44 @@ lm_df_2 |>
   theme_minimal()
 ```
 
+```{r}
+plot(lm_fit_2_stepwise)
+```
 
+
+#### Model 3
+
+```{r}
+#| output: false
+lm_fit_3 <- lm(target_wins ~ team_batting_h + 
+                 team_batting_2b + 
+                 team_batting_bb +
+                 team_pitching_hr + 
+                 team_batting_3b +
+                 team_pitching_bb + 
+                 team_baserun_sb + 
+                 team_batting_hbp + 
+                 team_pitching_so +
+                 team_fielding_e +
+                 team_pitching_h +
+                 team_baserun_cs, 
+               data = training_set)
+
+lm_df_3 <- broom::augment(lm_fit_3)
+lm_df_3 |> 
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_point() +
+  geom_smooth(method = "loess", se = FALSE, linetype = "dashed", color = "red") +
+  labs(
+    title = "Fitted vs. residual values"
+  ) +
+  xlab("Fitted Value") +
+  ylab("Residuals") +
+  theme_minimal()
+```
+
+```{r}
+plot(lm_fit_3)
+```
 
 
