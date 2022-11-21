@@ -61,3 +61,8 @@ lm_df |>
   xlab("Fitted Value") +
   ylab("Residuals") +
   theme_minimal()
+
+lm_fit_2 <- lm(target_wins ~ ., data = training_set)
+lm_fit_2_stepwise <- MASS::stepAIC(lm_fit_2, direction = "both", trace = FALSE)
+tidy(lm_fit_2_stepwise)
+tidy(lm_fit_2)

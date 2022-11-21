@@ -35,7 +35,7 @@ Your objective is to build a multiple linear regression model on the training da
 
 #Install pacman package and load libraries
 # install.packages("pacman")
-pacman::p_load(tidyverse, here, tidymodels, corrplot, MASS, gt)
+pacman::p_load(tidyverse, here, tidymodels, corrplot, MASS, gt, stargazer)
 
 #Makes sure dplyr::filter and dplyr::select will be used
 conflicted::conflict_prefer("select", "dplyr")
@@ -45,6 +45,8 @@ conflicted::conflict_prefer("filter", "dplyr")
 training_set <- readr::read_csv(here::here("data", "moneyball-training-data (1).csv")) |> 
   janitor::clean_names()
 ```
+
+{{< pagebreak >}}
 
 ### Check for missing values
 
@@ -121,6 +123,9 @@ Now that we do not have any missing values, we can perform some summary statisti
 +------------------+-------------+-------------+--------------------+
 
 : Summary Statistics
+
+{{< pagebreak >}}
+
 
 ### Summary plots
 
@@ -209,7 +214,7 @@ Since we've imputed missing values with median, let's perform a log transformati
 
 ### Log transformation
 
-Let's check some histogram plots of the variables, then perform a log transformation to reduce skew. 
+Let's check some histogram plots of the variables, then perform a log transformation to reduce skew. I'll show the first histogram, then the remaining in the appendix.
 
 ```{r}
 #| echo: false
@@ -224,14 +229,6 @@ hist_plots <- map(vars, ~ggplot(data = training_set) +
 #| echo: false
 #| warning: false
 hist_plots$team_batting_h
-hist_plots$team_batting_3b
-hist_plots$team_pitching_bb
-hist_plots$team_batting_so
-hist_plots$team_baserun_sb
-hist_plots$team_baserun_cs
-hist_plots$team_batting_hbp
-hist_plots$team_batting_so
-hist_plots$team_fielding_e
 ```
 
 {{< pagebreak >}}
@@ -243,6 +240,8 @@ hist_plots$team_fielding_e
 For our first model, let's use all the variables that have a positive correlation with `target_wins`. Our first model specification will be as follows:
 
 $wins = \beta_0 + \beta_1BaseHits + \beta_2Doubles + \beta_3Walks + \beta_4Homeruns + \beta_5Triples + \beta_6WalksAllowed + \beta_7StolenBases + \beta_8PitchesHit + \beta_9CaughtStealing + \epsilon$
+
+Based on the model specification, we would expect all the point estimates to be positive, since they have a positive correlation. From the results, `team_batting_2b` and `team_pitching_bb` both have negative point estimates. For `team_batting_2b`, the p-value is not significant, so less worry there. However, `team_pitching_bb` has a highly significant p-value, and a negative point estimate. We would expect that a team that allows more walks would perform worse, so perhaps the pearson correlation isn't an accurate statistic to use. 
 
 ```{r}
 #| warning: false
@@ -257,13 +256,14 @@ lm_fit_1 <- lm(target_wins ~ team_batting_h +
                  team_baserun_sb + 
                  team_batting_hbp + 
                  team_baserun_cs, data = training_set)
-tidy(lm_fit_1)
+summary(lm_fit_1)
 ```
 
 Let's check the residuals vs. fitted plot. 
 
 ```{r}
 #| echo: false
+#| warning: false
 ##Diagnostics
 #check for spefication bias
 lm_df <- broom::augment(lm_fit_1)
@@ -278,6 +278,92 @@ lm_df |>
   ylab("Residuals") +
   theme_minimal()
 ```
+
+{{< pagebreak >}}
+
+### Model 2
+
+For the next model, let's use the Akaike information criterion algorithm to predict the quality of each model, then choose the model with the lowest AIC value. 
+
+The first results is the full model (using all predictors).
+
+```{r}
+#| echo: false
+#| warning: false
+lm_fit_2 <- lm(target_wins ~ ., data = training_set)
+summary(lm_fit_2)
+```
+
+The second result is the model chose by `stepAIC` function from the `MASS` package. From the results below, the following predictors were excluded: `team_baserun_cs`, `team_batting_hbp`, `team_pitching_bb`, and `team_pitching_hr`. Analyzing the coefficients in the table below, `team_batting_2b` again has a negative coefficient, as well as: `team_fielding_dp`. 
+
+For the full model, `team_batting_2b` does have a significant p-value up to the 2% threshold, however the point estimate is just slightly negative. The more interesting regressor in this case is `team_fielding_dp`, with a negative point estimate that is highly statistically significant. 
+
+In the stepwise-AIC model, we observe the same pattern, where `team_batting_2b` and `team_fielding_dp` have negative point estimates and are statistically significant. 
+
+```{r}
+#| echo: false
+#| warning: false
+lm_fit_2_stepwise <- MASS::stepAIC(lm_fit_2, direction = "both", trace = FALSE)
+summary(lm_fit_2_stepwise)
+lm_df_2 <- broom::augment(lm_fit_2_stepwise)
+lm_df_2 |> 
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_point() +
+  geom_smooth(method = "loess", se = FALSE, linetype = "dashed", color = "red") +
+  labs(
+    title = "Fitted vs. residual values"
+  ) +
+  xlab("Fitted Value") +
+  ylab("Residuals") +
+  theme_minimal()
+```
+
+{{< pagebreak >}}
+
+### Model 3
+
+For the last model, let's take an augmented version of model 1, where we include relevant predictors with a negative correlation with the regressand to better fit the model. 
+
+$wins = \beta_0 + \beta_1BaseHits + \beta_2Doubles + \beta_3Walks + \beta_4Homeruns + \beta_5Triples + \beta_6WalksAllowed + \beta_7StolenBases + \beta_8PitchesHit + \beta_9CaughtStealing + \beta_{10}HitsAllowed + \beta_{11}Errors + \beta_{12}Strikeouts +\epsilon$
+
+```{r}
+#| warning: false
+#| echo: false
+##First model: Only use variables with positive correlation coefficient
+lm_fit_3 <- lm(target_wins ~ team_batting_h + 
+                 team_batting_2b + 
+                 team_batting_bb +
+                 team_pitching_hr + 
+                 team_batting_3b +
+                 team_pitching_bb + 
+                 team_baserun_sb + 
+                 team_batting_hbp + 
+                 team_pitching_so +
+                 team_fielding_e +
+                 team_pitching_h +
+                 team_baserun_cs, 
+               data = training_set)
+summary(lm_fit_3)
+```
+
+Let's check the residuals vs. fitted plot:
+
+```{r}
+#| echo: false
+lm_df_3 <- broom::augment(lm_fit_3)
+lm_df_3 |> 
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_point() +
+  geom_smooth(method = "loess", se = FALSE, linetype = "dashed", color = "red") +
+  labs(
+    title = "Fitted vs. residual values"
+  ) +
+  xlab("Fitted Value") +
+  ylab("Residuals") +
+  theme_minimal()
+```
+
+{{< pagebreak >}}
 
 ## Select Models
 
@@ -333,6 +419,7 @@ hist_plots <- map(vars, ~ggplot(data = training_set) +
                     labs(y = .x)
 )
 
+
 #Correlation matrix
 cor_matrix <- training_set |> 
   dplyr::select(-index) |>
@@ -348,9 +435,25 @@ purrr::map_df(vars, ~cor(training_set$target_wins, training_set[[.x]])) |>
   gt::gt()
 ```
 
+```{r}
+#| warning: false
+hist_plots$team_batting_h
+hist_plots$team_batting_3b
+hist_plots$team_pitching_bb
+hist_plots$team_batting_so
+hist_plots$team_baserun_sb
+hist_plots$team_baserun_cs
+hist_plots$team_batting_hbp
+hist_plots$team_batting_so
+hist_plots$team_fielding_e
+
+```
+
+
 ### Transformations
 
 ```{r}
+#| output: false
 # Log transformation
 training_set |> 
   mutate(across(
@@ -363,19 +466,18 @@ training_set |>
 
 ### Models
 
+#### Model 1
+
 ```{r}
+#| output: false
 ##First model: Only use variables with positive correlation coefficient
-lm_fit_1 <- lm(target_wins ~ team_batting_h + team_batting_2b + team_batting_bb + team_pitching_hr + team_batting_3b +
-                 team_pitching_bb + team_baserun_sb + team_batting_hbp + team_baserun_cs, data = training_set)
+lm_fit_1 <- lm(target_wins ~ team_batting_h + 
+                 team_batting_2b + team_batting_bb + 
+                 team_pitching_hr + team_batting_3b +
+                 team_pitching_bb + team_baserun_sb + 
+                 team_batting_hbp + team_baserun_cs, data = training_set)
 tidy(lm_fit_1)
-```
 
-Let's check the residuals vs. fitted plot. 
-
-```{r}
-#| echo: false
-##Diagnostics
-#check for spefication bias
 lm_df <- broom::augment(lm_fit_1)
 lm_df |> 
   ggplot(aes(x = .fitted, y = .resid)) +
@@ -388,4 +490,29 @@ lm_df |>
   ylab("Residuals") +
   theme_minimal()
 ```
+
+#### Model 2
+
+```{r}
+#| output: false
+lm_fit_2 <- lm(target_wins ~ ., data = training_set)
+tidy(lm_fit_2)
+
+lm_fit_2_stepwise <- MASS::stepAIC(lm_fit_2, direction = "both", trace = FALSE)
+tidy(lm_fit_2_stepwise)
+lm_df_2 <- broom::augment(lm_fit_2_stepwise)
+lm_df_2 |> 
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_point() +
+  geom_smooth(method = "loess", se = FALSE, linetype = "dashed", color = "red") +
+  labs(
+    title = "Fitted vs. residual values"
+  ) +
+  xlab("Fitted Value") +
+  ylab("Residuals") +
+  theme_minimal()
+```
+
+
+
 
