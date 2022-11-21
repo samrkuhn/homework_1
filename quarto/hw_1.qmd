@@ -33,16 +33,18 @@ Your objective is to build a multiple linear regression model on the training da
 # library(MASS)
 # library(gt)
 
-#Install pacman package and load libraries
+# Install pacman package and load libraries
 # install.packages("pacman")
 pacman::p_load(tidyverse, here, tidymodels, corrplot, MASS, gt, stargazer)
 
-#Makes sure dplyr::filter and dplyr::select will be used
+# Makes sure dplyr::filter and dplyr::select will be used
 conflicted::conflict_prefer("select", "dplyr")
 conflicted::conflict_prefer("filter", "dplyr")
 
-#Load training set from data folder and clean variable names
-training_set <- readr::read_csv(here::here("data", "moneyball-training-data (1).csv")) |> 
+# Load training set from data folder and clean variable names
+training_set <- readr::read_csv(
+  here::here("data", "moneyball-training-data (1).csv")
+) |>
   janitor::clean_names()
 ```
 
@@ -53,30 +55,29 @@ training_set <- readr::read_csv(here::here("data", "moneyball-training-data (1).
 To check for NA values, we are going to take the sum of every value matching `NA` across the entire data-frame and print the results. Then, replace all the `NA` values with the median value of the corresponding variable. The variables with the most `NA` observations are: `team_batting_hbp`, `team_baserun_cs`, and `team_fielding_dp`.
 
 ```{r}
-#Sum NAs across columns
-training_set |> 
-  summarise(across(everything(), ~ sum(is.na(.)))) |> 
+# Sum NAs across columns
+training_set |>
+  summarise(across(everything(), ~ sum(is.na(.)))) |>
   glimpse()
-
 ```
 
 {{< pagebreak >}}
 
 ```{r}
 #| output: false
-#Replace missing values (NAs) with median values
-training_set <- training_set |> 
-  mutate(across(everything(), ~tidyr::replace_na(., median(., na.rm = TRUE)))) |> 
+# Replace missing values (NAs) with median values
+training_set <- training_set |>
+  mutate(across(everything(), ~ tidyr::replace_na(., median(., na.rm = TRUE)))) |>
   glimpse()
 ```
 
 Just as a check, we will print out the data frame again to ensure no `NA` values remain.
 
 ```{r}
-#Verify results
-#Sum NAs across columns
-training_set |> 
-  summarise(across(everything(), ~ sum(is.na(.)))) |> 
+# Verify results
+# Sum NAs across columns
+training_set |>
+  summarise(across(everything(), ~ sum(is.na(.)))) |>
   glimpse()
 ```
 
@@ -86,46 +87,45 @@ training_set |>
 
 Now that we do not have any missing values, we can perform some summary statistics to get a better sense of the data. Some key variables are interest are the regressand `target_wins`, where we can see the median value is slightly higher than the mean, suggesting that there is a possible left-tail distribution. Other key variables include: `team_batting_h` which can help predict total runs, and `team_batting_hr` which are homeruns.
 
-+------------------+-------------+-------------+--------------------+
-| Variable         | Median      | Mean        | Standard Deviation |
-+:================:+:===========:+:===========:+:==================:+
-| target_wins:     | 82          | 80.79       | 15.75215           |
-+------------------+-------------+-------------+--------------------+
-| team_batting_h   | 1454        | 1469.27     | 144.5912           |
-|                  |             |             |                    |
-| team_batting_2b  | 238         | 241.2469    | 46.80141           |
-+------------------+-------------+-------------+--------------------+
-| team_batting_3b  | 47          | 55.25       | 27.93856           |
-+------------------+-------------+-------------+--------------------+
-| team_batting_hr  | 102         | 99.61204    | 60.54687           |
-|                  |             |             |                    |
-| team_batting_bb  | 512         | 501.5589    | 122.6709           |
-|                  |             |             |                    |
-| team_batting_so  | 750         | 736.2504    | 242.9094           |
-|                  |             |             |                    |
-| team_batting_sb  | 101         | 123.3941    | 85.40565           |
-|                  |             |             |                    |
-| team_baserun_cs  | 49          | 51.51362    | 18.74587           |
-|                  |             |             |                    |
-| team_batting_hbp | 58          | 58.1138     | 3.766219           |
-|                  |             |             |                    |
-| team_pitching_h  | 1518        | 1779.21     | 1406.843           |
-|                  |             |             |                    |
-| team_pitching_hr | 107         | 105.6986    | 61.29875           |
-|                  |             |             |                    |
-| team_pitching_bb | 536.5       | 553.0079    | 166.3574           |
-|                  |             |             |                    |
-| team_pitching_so | 813.5       | 817.5409    | 540.5447           |
-|                  |             |             |                    |
-| team_pitching_e  | 159         | 246.4807    | 227.771            |
-|                  |             |             |                    |
-| team_fielding_dp | 149         | 146.7162    | 24.53781           |
-+------------------+-------------+-------------+--------------------+
++------------------+--------------+--------------+--------------------+
+| Variable         | Median       | Mean         | Standard Deviation |
++:================:+:============:+:============:+:==================:+
+| target_wins:     | 82           | 80.79        | 15.75215           |
++------------------+--------------+--------------+--------------------+
+| team_batting_h   | 1454         | 1469.27      | 144.5912           |
+|                  |              |              |                    |
+| team_batting_2b  | 238          | 241.2469     | 46.80141           |
++------------------+--------------+--------------+--------------------+
+| team_batting_3b  | 47           | 55.25        | 27.93856           |
++------------------+--------------+--------------+--------------------+
+| team_batting_hr  | 102          | 99.61204     | 60.54687           |
+|                  |              |              |                    |
+| team_batting_bb  | 512          | 501.5589     | 122.6709           |
+|                  |              |              |                    |
+| team_batting_so  | 750          | 736.2504     | 242.9094           |
+|                  |              |              |                    |
+| team_batting_sb  | 101          | 123.3941     | 85.40565           |
+|                  |              |              |                    |
+| team_baserun_cs  | 49           | 51.51362     | 18.74587           |
+|                  |              |              |                    |
+| team_batting_hbp | 58           | 58.1138      | 3.766219           |
+|                  |              |              |                    |
+| team_pitching_h  | 1518         | 1779.21      | 1406.843           |
+|                  |              |              |                    |
+| team_pitching_hr | 107          | 105.6986     | 61.29875           |
+|                  |              |              |                    |
+| team_pitching_bb | 536.5        | 553.0079     | 166.3574           |
+|                  |              |              |                    |
+| team_pitching_so | 813.5        | 817.5409     | 540.5447           |
+|                  |              |              |                    |
+| team_pitching_e  | 159          | 246.4807     | 227.771            |
+|                  |              |              |                    |
+| team_fielding_dp | 149          | 146.7162     | 24.53781           |
++------------------+--------------+--------------+--------------------+
 
 : Summary Statistics
 
 {{< pagebreak >}}
-
 
 ### Summary plots
 
@@ -133,20 +133,17 @@ Let's look at some plots to visually inspect the data:
 
 ```{r}
 #| echo: false
-vars <- training_set |> 
-  #select(-index) |> 
-  names() |> 
+vars <- training_set |>
+  # select(-index) |>
+  names() |>
   set_names()
 
-#Use map function to create a sequence of plots
-plots <-  map(vars, ~ggplot(data = training_set) +
-              geom_point(aes(x = target_wins, y = .data[[.x]]) ) +
-              theme_minimal() +
-              labs(y = .x)
-)
+# Use map function to create a sequence of plots
+plots <- map(vars, ~ ggplot(data = training_set) +
+  geom_point(aes(x = target_wins, y = .data[[.x]])) +
+  theme_minimal() +
+  labs(y = .x))
 ```
-
-{{< pagebreak >}}
 
 This first plot is ***base hits by batters vs. number of wins***. We can see that most of the observations are centered around 1500 hits, and \~80 wins, with a positive linear relationship.
 
@@ -173,38 +170,37 @@ plots$team_batting_so
 
 ### Correlation Plot
 
-Now that we have a good idea about the distribution of our key variables, let's check the statistical correlation between all the variables and `target_wins`, to understand how each variable is impact it. From the table, the variable with the most positive impact is `team_batting_h`, while the most negative is `team_pitching_h`. 
+Now that we have a good idea about the distribution of our key variables, let's check the statistical correlation between all the variables and `target_wins`, to understand how each variable is impact it. From the table, the variable with the most positive impact is `team_batting_h`, while the most negative is `team_pitching_h`.
 
 ```{r}
 #| echo: false
-#Correlation matrix
-cor_matrix <- training_set |> 
+# Correlation matrix
+cor_matrix <- training_set |>
   dplyr::select(-index) |>
-  cor() |> 
+  cor() |>
   as.matrix()
 
 corrplot(cor_matrix)
 
-#Get correlation values as a table, sorted highest to lowest
-purrr::map_df(vars, ~cor(training_set$target_wins, training_set[[.x]])) |> 
-  dplyr::select(-index) |> 
-  pivot_longer(cols = !c("target_wins"), names_to = "correlation") |> 
-  arrange(desc(value)) |> 
-  gt::gt() |> 
+# Get correlation values as a table, sorted highest to lowest
+purrr::map_df(vars, ~ cor(training_set$target_wins, training_set[[.x]])) |>
+  dplyr::select(-index) |>
+  pivot_longer(cols = !c("target_wins"), names_to = "correlation") |>
+  arrange(desc(value)) |>
+  gt::gt() |>
   gt::tab_header(
     title = "Correlation between variables and Target Wins",
     subtitle = "Pearson correlation"
-  ) |> 
+  ) |>
   gt::cols_label(
     target_wins = "Target Wins",
     correlation = "Variable",
     value = "Correlation"
-  ) |> 
+  ) |>
   gt::tab_options(
     table.font.size = 8
   )
 ```
-
 
 {{< pagebreak >}}
 
@@ -218,11 +214,10 @@ Let's check some histogram plots of the variables, then perform a log transforma
 
 ```{r}
 #| echo: false
-hist_plots <- map(vars, ~ggplot(data = training_set) +
-                    geom_histogram(aes(x = .data[[.x]]) ) +
-                    theme_minimal() +
-                    labs(y = .x)
-)
+hist_plots <- map(vars, ~ ggplot(data = training_set) +
+  geom_histogram(aes(x = .data[[.x]])) +
+  theme_minimal() +
+  labs(y = .x))
 ```
 
 ```{r}
@@ -241,35 +236,35 @@ For our first model, let's use all the variables that have a positive correlatio
 
 $wins = \beta_0 + \beta_1BaseHits + \beta_2Doubles + \beta_3Walks + \beta_4Homeruns + \beta_5Triples + \beta_6WalksAllowed + \beta_7StolenBases + \beta_8PitchesHit + \beta_9CaughtStealing + \epsilon$
 
-Based on the model specification, we would expect all the point estimates to be positive, since they have a positive correlation. From the results, `team_batting_2b` and `team_pitching_bb` both have negative point estimates. For `team_batting_2b`, the p-value is not significant, so less worry there. However, `team_pitching_bb` has a highly significant p-value, and a negative point estimate. We would expect that a team that allows more walks would perform worse, so perhaps the pearson correlation isn't an accurate statistic to use. 
+Based on the model specification, we would expect all the point estimates to be positive, since they have a positive correlation. From the results, `team_batting_2b` and `team_pitching_bb` both have negative point estimates. For `team_batting_2b`, the p-value is not significant, so less worry there. However, `team_pitching_bb` has a highly significant p-value, and a negative point estimate. We would expect that a team that allows more walks would perform worse, so perhaps the pearson correlation isn't an accurate statistic to use.
 
 ```{r}
 #| warning: false
 #| echo: false
-##First model: Only use variables with positive correlation coefficient
-lm_fit_1 <- lm(target_wins ~ team_batting_h + 
-                 team_batting_2b + 
-                 team_batting_bb +
-                 team_pitching_hr + 
-                 team_batting_3b +
-                 team_pitching_bb + 
-                 team_baserun_sb + 
-                 team_batting_hbp + 
-                 team_baserun_cs, data = training_set)
+## First model: Only use variables with positive correlation coefficient
+lm_fit_1 <- lm(target_wins ~ team_batting_h +
+  team_batting_2b +
+  team_batting_bb +
+  team_pitching_hr +
+  team_batting_3b +
+  team_pitching_bb +
+  team_baserun_sb +
+  team_batting_hbp +
+  team_baserun_cs, data = training_set)
 summary(lm_fit_1)
 
 print(paste0("The mean squared error is: ", mean(lm_fit_1$residuals^2)))
 ```
 
-Let's check the residuals vs. fitted plot. 
+Let's check the residuals vs. fitted plot.
 
 ```{r}
 #| echo: false
 #| warning: false
-##Diagnostics
-#check for spefication bias
+## Diagnostics
+# check for spefication bias
 lm_df <- broom::augment(lm_fit_1)
-lm_df |> 
+lm_df |>
   ggplot(aes(x = .fitted, y = .resid)) +
   geom_point() +
   geom_smooth(method = "loess", se = FALSE, linetype = "dashed", color = "red") +
@@ -285,7 +280,7 @@ lm_df |>
 
 ### Model 2
 
-For the next model, let's use the Akaike information criterion algorithm to predict the quality of each model, then choose the model with the lowest AIC value. 
+For the next model, let's use the Akaike information criterion algorithm to predict the quality of each model, then choose the model with the lowest AIC value.
 
 The first results is the full model (using all predictors).
 
@@ -297,11 +292,11 @@ summary(lm_fit_2)
 print(paste0("The mean squared error is: ", mean(lm_fit_2$residuals^2)))
 ```
 
-The second result is the model chose by `stepAIC` function from the `MASS` package. From the results below, the following predictors were excluded: `team_baserun_cs`, `team_batting_hbp`, `team_pitching_bb`, and `team_pitching_hr`. Analyzing the coefficients in the table below, `team_batting_2b` again has a negative coefficient, as well as: `team_fielding_dp`. 
+The second result is the model chose by `stepAIC` function from the `MASS` package. From the results below, the following predictors were excluded: `team_baserun_cs`, `team_batting_hbp`, `team_pitching_bb`, and `team_pitching_hr`. Analyzing the coefficients in the table below, `team_batting_2b` again has a negative coefficient, as well as: `team_fielding_dp`.
 
-For the full model, `team_batting_2b` does have a significant p-value up to the 2% threshold, however the point estimate is just slightly negative. The more interesting regressor in this case is `team_fielding_dp`, with a negative point estimate that is highly statistically significant. 
+For the full model, `team_batting_2b` does have a significant p-value up to the 2% threshold, however the point estimate is just slightly negative. The more interesting regressor in this case is `team_fielding_dp`, with a negative point estimate that is highly statistically significant.
 
-In the stepwise-AIC model, we observe the same pattern, where `team_batting_2b` and `team_fielding_dp` have negative point estimates and are statistically significant. 
+In the stepwise-AIC model, we observe the same pattern, where `team_batting_2b` and `team_fielding_dp` have negative point estimates and are statistically significant.
 
 ```{r}
 #| echo: false
@@ -310,7 +305,7 @@ lm_fit_2_stepwise <- MASS::stepAIC(lm_fit_2, direction = "both", trace = FALSE)
 summary(lm_fit_2_stepwise)
 print(paste0("The mean squared error is: ", mean(lm_fit_2_stepwise$residuals^2)))
 lm_df_2 <- broom::augment(lm_fit_2_stepwise)
-lm_df_2 |> 
+lm_df_2 |>
   ggplot(aes(x = .fitted, y = .resid)) +
   geom_point() +
   geom_smooth(method = "loess", se = FALSE, linetype = "dashed", color = "red") +
@@ -326,27 +321,29 @@ lm_df_2 |>
 
 ### Model 3
 
-For the last model, let's take an augmented version of model 1, where we include relevant predictors with a negative correlation with the regressand to better fit the model. 
+For the last model, let's take an augmented version of model 1, where we include relevant predictors with a negative correlation with the regressand to better fit the model.
 
 $wins = \beta_0 + \beta_1BaseHits + \beta_2Doubles + \beta_3Walks + \beta_4Homeruns + \beta_5Triples + \beta_6WalksAllowed + \beta_7StolenBases + \beta_8PitchesHit + \beta_9CaughtStealing + \beta_{10}HitsAllowed + \beta_{11}Errors + \beta_{12}Strikeouts +\epsilon$
 
 ```{r}
 #| warning: false
 #| echo: false
-##First model: Only use variables with positive correlation coefficient
-lm_fit_3 <- lm(target_wins ~ team_batting_h + 
-                 team_batting_2b + 
-                 team_batting_bb +
-                 team_pitching_hr + 
-                 team_batting_3b +
-                 team_pitching_bb + 
-                 team_baserun_sb + 
-                 team_batting_hbp + 
-                 team_pitching_so +
-                 team_fielding_e +
-                 team_pitching_h +
-                 team_baserun_cs, 
-               data = training_set)
+## First model: Only use variables with positive correlation coefficient
+lm_fit_3 <- lm(
+  target_wins ~ team_batting_h +
+    team_batting_2b +
+    team_batting_bb +
+    team_pitching_hr +
+    team_batting_3b +
+    team_pitching_bb +
+    team_baserun_sb +
+    team_batting_hbp +
+    team_pitching_so +
+    team_fielding_e +
+    team_pitching_h +
+    team_baserun_cs,
+  data = training_set
+)
 summary(lm_fit_3)
 print(paste0("The mean squared error is: ", mean(lm_fit_3$residuals^2)))
 ```
@@ -356,7 +353,7 @@ Let's check the residuals vs. fitted plot:
 ```{r}
 #| echo: false
 lm_df_3 <- broom::augment(lm_fit_3)
-lm_df_3 |> 
+lm_df_3 |>
   ggplot(aes(x = .fitted, y = .resid)) +
   geom_point() +
   geom_smooth(method = "loess", se = FALSE, linetype = "dashed", color = "red") +
@@ -372,7 +369,7 @@ lm_df_3 |>
 
 ## Select Models
 
-From the models in the `Build Models` section, to choose the final model we need to think about multicollinearity issues & normality of the residuals. Each section below will have a short-discussion about the performance and inference issues of the three models. The four diagnostics plots can be found in the relevant appendix section. 
+From the models in the `Build Models` section, to choose the final model we need to think about multicollinearity issues & normality of the residuals. Each section below will have a short-discussion about the performance and inference issues of the three models. The four diagnostics plots can be found in the relevant appendix section.
 
 ### Model 1 Diagnostics:
 
@@ -384,30 +381,41 @@ Model 2's performance looks the most promising based on the adjusted $R^2$ of .3
 
 ### Model 3 Diagnostics:
 
-I would rank model 3's performance as better than model 1, however slightly worse than model 2. The fitted vs. residual plot shows a stronger downward trend on the higher end of target wins compared to 2, and a lower adjusted $R^2$ at .2833. The normal QQ plot is also slightly less linear than compared to model 2. Model 3's mean squared error was in the middle, at 176.8181. 
+I would rank model 3's performance as better than model 1, however slightly worse than model 2. The fitted vs. residual plot shows a stronger downward trend on the higher end of target wins compared to 2, and a lower adjusted $R^2$ at .2833. The normal QQ plot is also slightly less linear than compared to model 2. Model 3's mean squared error was in the middle, at 176.8181.
 
 {{< pagebreak >}}
 
 ### Evaluation
 
-Based on the following metrics: Adjusted $R^2$, mean squared error and the diagnostic plots, model 2 is the clear favorite. Now we will evaluate its performance against the evaluation data set. We will peform the same data imputation method as the training data-set for accuracy. 
+Based on the following metrics: Adjusted $R^2$, mean squared error and the diagnostic plots, model 2 is the clear favorite. Now we will evaluate its performance against the evaluation data set. We will perform the same data imputation method as the training data-set for accuracy. Overall, model 2 was chose because:
+
+1.  It had the lowest mean squared error at 169.8769
+
+2.  It had the highest adjusted \$R\^2\$ at .3111
+
+3.  The most linear normal QQ plot and the best fitted. vs residuals plot in terms of non-randomness.
+
+4.  It had the highest F-statistic at 94.68 and the most significant amount of variables based on the p-value. 
+
+From the histogram plots comparing the target wins of the training set and the predicted values, we can see that the model is over-estimating the amount of wins in the 40-60 range, as well as the 100-120 range. However, still fairly accurate. 
 
 ```{r}
 #| echo: false
-eval_set <- readr::read_csv(here::here("data", "moneyball-evaluation-data (1).csv")) |> 
-  janitor::clean_names() |> 
+#| output: false
+eval_set <- readr::read_csv(here::here("data", "moneyball-evaluation-data (1).csv")) |>
+  janitor::clean_names() |>
   glimpse()
 
-eval_set <- eval_set |> 
-  mutate(across(everything(), ~tidyr::replace_na(., median(., na.rm = TRUE)))) |> 
+eval_set <- eval_set |>
+  mutate(across(everything(), ~ tidyr::replace_na(., median(., na.rm = TRUE)))) |>
   glimpse()
 ```
 
 ```{r}
+#| echo: false
+#| output: false
 pred <- predict(lm_fit_2_stepwise, eval_set, interval = "prediction")
 summary(pred)
-plot(pred)
-hist(pred)
 
 pred_2 <- predict(lm_fit_2_stepwise, eval_set, interval = "prediction", level = .99)
 summary(pred_2)
@@ -417,15 +425,25 @@ pred_conf <- predict(lm_fit_2_stepwise, eval_set, interval = "confidence", se.fi
 summary(pred_conf)
 ```
 
-```{r}
-training_fit <- training_set |> 
-  slice_sample(n = 259)
+Compare the histogram of the training set's target wins and predicted target wins.
 
-#Mean squared error
-print(paste0("The mean squared error of the predicted values is: ", mean((training_fit$target_wins - predict(lm_fit_2_stepwise, eval_set, interval = "prediction"))^2)))
-# training_set$target_wins - predict(lm_fit_2_stepwise, eval_set, interval = "prediction")
+```{r}
+#| echo: false
+hist(pred)
+hist(training_set$target_wins)
 ```
 
+```{r}
+#| echo: false
+training_fit <- training_set |>
+  slice_sample(n = 259)
+
+# Mean squared error
+print(paste0(
+  "The mean squared error of the predicted values is: ",
+  mean((training_fit$target_wins - predict(lm_fit_2_stepwise, eval_set, interval = "prediction"))^2)
+))
+```
 
 {{< pagebreak >}}
 
@@ -436,22 +454,22 @@ print(paste0("The mean squared error of the predicted values is: ", mean((traini
 ```{r}
 #| output: false
 
-##Median
-training_set |> 
-  dplyr::select(-index) |> 
-  summarise(across(everything(), ~ median(.))) |> 
+## Median
+training_set |>
+  dplyr::select(-index) |>
+  summarise(across(everything(), ~ median(.))) |>
   glimpse()
 
-##Mean
-training_set |> 
-  dplyr::select(-index) |> 
-  summarise(across(everything(), ~ mean(.))) |> 
+## Mean
+training_set |>
+  dplyr::select(-index) |>
+  summarise(across(everything(), ~ mean(.))) |>
   glimpse()
 
-##Standard Deviation
-training_set |> 
-  dplyr::select(-index) |> 
-  summarise(across(everything(), ~ sd(.))) |> 
+## Standard Deviation
+training_set |>
+  dplyr::select(-index) |>
+  summarise(across(everything(), ~ sd(.))) |>
   glimpse()
 ```
 
@@ -459,38 +477,36 @@ training_set |>
 
 ```{r}
 #| output: false
-#Create named character vector of variables
-vars <- training_set |> 
-  #select(-index) |> 
-  names() |> 
+# Create named character vector of variables
+vars <- training_set |>
+  # select(-index) |>
+  names() |>
   set_names()
 
-#Use map function to create a sequence of plots
-scatter_plots <-  map(vars, ~ggplot(data = training_set) +
-              geom_point(aes(x = target_wins, y = .data[[.x]]) ) +
-              theme_minimal() +
-              labs(y = .x)
-)
+# Use map function to create a sequence of plots
+scatter_plots <- map(vars, ~ ggplot(data = training_set) +
+  geom_point(aes(x = target_wins, y = .data[[.x]])) +
+  theme_minimal() +
+  labs(y = .x))
 
-hist_plots <- map(vars, ~ggplot(data = training_set) +
-                    geom_histogram(aes(x = .data[[.x]]) ) +
-                    theme_minimal() +
-                    labs(y = .x)
-)
+hist_plots <- map(vars, ~ ggplot(data = training_set) +
+  geom_histogram(aes(x = .data[[.x]])) +
+  theme_minimal() +
+  labs(y = .x))
 
 
-#Correlation matrix
-cor_matrix <- training_set |> 
+# Correlation matrix
+cor_matrix <- training_set |>
   dplyr::select(-index) |>
-  cor() |> 
+  cor() |>
   as.matrix()
 
 corrplot(cor_matrix)
 
-#Get correlation values as a table, sorted highest to lowest
-purrr::map_df(vars, ~cor(training_set$target_wins, training_set[[.x]])) |> 
-  pivot_longer(cols = !c("target_wins"), names_to = "correlation") |> 
-  arrange(desc(value)) |> 
+# Get correlation values as a table, sorted highest to lowest
+purrr::map_df(vars, ~ cor(training_set$target_wins, training_set[[.x]])) |>
+  pivot_longer(cols = !c("target_wins"), names_to = "correlation") |>
+  arrange(desc(value)) |>
   gt::gt()
 ```
 
@@ -505,20 +521,20 @@ hist_plots$team_baserun_cs
 hist_plots$team_batting_hbp
 hist_plots$team_batting_so
 hist_plots$team_fielding_e
-
 ```
-
 
 ### Transformations
 
 ```{r}
 #| output: false
 # Log transformation
-training_set |> 
+training_set |>
   mutate(across(
-    .cols = c("team_batting_h", "team_batting_3b", "team_pitching_bb", 
-              "team_batting_so", "team_baserun_sb", "team_baserun_cs",
-              "team_batting_hbp", "team_batting_so", "team_fielding_e"),
+    .cols = c(
+      "team_batting_h", "team_batting_3b", "team_pitching_bb",
+      "team_batting_so", "team_baserun_sb", "team_baserun_cs",
+      "team_batting_hbp", "team_batting_so", "team_fielding_e"
+    ),
     .fns = log
   ))
 ```
@@ -529,16 +545,16 @@ training_set |>
 
 ```{r}
 #| output: false
-##First model: Only use variables with positive correlation coefficient
-lm_fit_1 <- lm(target_wins ~ team_batting_h + 
-                 team_batting_2b + team_batting_bb + 
-                 team_pitching_hr + team_batting_3b +
-                 team_pitching_bb + team_baserun_sb + 
-                 team_batting_hbp + team_baserun_cs, data = training_set)
+## First model: Only use variables with positive correlation coefficient
+lm_fit_1 <- lm(target_wins ~ team_batting_h +
+  team_batting_2b + team_batting_bb +
+  team_pitching_hr + team_batting_3b +
+  team_pitching_bb + team_baserun_sb +
+  team_batting_hbp + team_baserun_cs, data = training_set)
 tidy(lm_fit_1)
 
 lm_df <- broom::augment(lm_fit_1)
-lm_df |> 
+lm_df |>
   ggplot(aes(x = .fitted, y = .resid)) +
   geom_point() +
   geom_smooth(method = "loess", se = FALSE, linetype = "dashed", color = "red") +
@@ -554,7 +570,6 @@ lm_df |>
 plot(lm_fit_1)
 ```
 
-
 #### Model 2
 
 ```{r}
@@ -565,7 +580,7 @@ tidy(lm_fit_2)
 lm_fit_2_stepwise <- MASS::stepAIC(lm_fit_2, direction = "both", trace = FALSE)
 tidy(lm_fit_2_stepwise)
 lm_df_2 <- broom::augment(lm_fit_2_stepwise)
-lm_df_2 |> 
+lm_df_2 |>
   ggplot(aes(x = .fitted, y = .resid)) +
   geom_point() +
   geom_smooth(method = "loess", se = FALSE, linetype = "dashed", color = "red") +
@@ -581,27 +596,28 @@ lm_df_2 |>
 plot(lm_fit_2_stepwise)
 ```
 
-
 #### Model 3
 
 ```{r}
 #| output: false
-lm_fit_3 <- lm(target_wins ~ team_batting_h + 
-                 team_batting_2b + 
-                 team_batting_bb +
-                 team_pitching_hr + 
-                 team_batting_3b +
-                 team_pitching_bb + 
-                 team_baserun_sb + 
-                 team_batting_hbp + 
-                 team_pitching_so +
-                 team_fielding_e +
-                 team_pitching_h +
-                 team_baserun_cs, 
-               data = training_set)
+lm_fit_3 <- lm(
+  target_wins ~ team_batting_h +
+    team_batting_2b +
+    team_batting_bb +
+    team_pitching_hr +
+    team_batting_3b +
+    team_pitching_bb +
+    team_baserun_sb +
+    team_batting_hbp +
+    team_pitching_so +
+    team_fielding_e +
+    team_pitching_h +
+    team_baserun_cs,
+  data = training_set
+)
 
 lm_df_3 <- broom::augment(lm_fit_3)
-lm_df_3 |> 
+lm_df_3 |>
   ggplot(aes(x = .fitted, y = .resid)) +
   geom_point() +
   geom_smooth(method = "loess", se = FALSE, linetype = "dashed", color = "red") +
@@ -620,13 +636,41 @@ plot(lm_fit_3)
 #### Evaluation
 
 ```{r}
-#| echo: false
-eval_set <- readr::read_csv(here::here("data", "moneyball-evaluation-data (1).csv")) |> 
-  janitor::clean_names() |> 
+#| output: false
+eval_set <- readr::read_csv(
+  here::here("data", "moneyball-evaluation-data (1).csv")
+) |>
+  janitor::clean_names() |>
   glimpse()
 
-eval_set <- eval_set |> 
-  mutate(across(everything(), ~tidyr::replace_na(., median(., na.rm = TRUE)))) |> 
+eval_set <- eval_set |>
+  mutate(across(everything(), ~ tidyr::replace_na(., median(., na.rm = TRUE)))) |>
   glimpse()
 ```
 
+```{r}
+#| output: false
+pred <- predict(lm_fit_2_stepwise, eval_set, interval = "prediction")
+summary(pred)
+
+pred_2 <- predict(lm_fit_2_stepwise, eval_set, interval = "prediction", level = .99)
+summary(pred_2)
+hist(pred_2)
+
+pred_conf <- predict(lm_fit_2_stepwise, eval_set, interval = "confidence", se.fit = TRUE)
+summary(pred_conf)
+```
+
+
+```{r}
+#| output: false
+training_fit <- training_set |>
+  slice_sample(n = 259)
+
+# Mean squared error
+print(paste0(
+  "The mean squared error of the predicted values is: ",
+  mean((training_fit$target_wins -
+    predict(lm_fit_2_stepwise, eval_set, interval = "prediction"))^2)
+))
+```
