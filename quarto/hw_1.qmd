@@ -393,6 +393,7 @@ I would rank model 3's performance as better than model 1, however slightly wors
 Based on the following metrics: Adjusted $R^2$, mean squared error and the diagnostic plots, model 2 is the clear favorite. Now we will evaluate its performance against the evaluation data set. We will peform the same data imputation method as the training data-set for accuracy. 
 
 ```{r}
+#| echo: false
 eval_set <- readr::read_csv(here::here("data", "moneyball-evaluation-data (1).csv")) |> 
   janitor::clean_names() |> 
   glimpse()
@@ -403,8 +404,26 @@ eval_set <- eval_set |>
 ```
 
 ```{r}
-pred <- predict(lm_fit_2_stepwise, eval_set)
+pred <- predict(lm_fit_2_stepwise, eval_set, interval = "prediction")
 summary(pred)
+plot(pred)
+hist(pred)
+
+pred_2 <- predict(lm_fit_2_stepwise, eval_set, interval = "prediction", level = .99)
+summary(pred_2)
+hist(pred_2)
+
+pred_conf <- predict(lm_fit_2_stepwise, eval_set, interval = "confidence", se.fit = TRUE)
+summary(pred_conf)
+```
+
+```{r}
+training_fit <- training_set |> 
+  slice_sample(n = 259)
+
+#Mean squared error
+print(paste0("The mean squared error of the predicted values is: ", mean((training_fit$target_wins - predict(lm_fit_2_stepwise, eval_set, interval = "prediction"))^2)))
+# training_set$target_wins - predict(lm_fit_2_stepwise, eval_set, interval = "prediction")
 ```
 
 
@@ -598,4 +617,16 @@ lm_df_3 |>
 plot(lm_fit_3)
 ```
 
+#### Evaluation
+
+```{r}
+#| echo: false
+eval_set <- readr::read_csv(here::here("data", "moneyball-evaluation-data (1).csv")) |> 
+  janitor::clean_names() |> 
+  glimpse()
+
+eval_set <- eval_set |> 
+  mutate(across(everything(), ~tidyr::replace_na(., median(., na.rm = TRUE)))) |> 
+  glimpse()
+```
 
